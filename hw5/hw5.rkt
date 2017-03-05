@@ -69,9 +69,9 @@
                (int 1)
                (int 0)))]
         [(apair? e)
-         (let ([v1 (eval-under-env (apair-e1 e) env)]
-               [v2 (eval-under-env (apair-e2 e) env)])
-           (apair v1 v2))]
+         (apair
+          (eval-under-env (apair-e1 e) env)
+          (eval-under-env (apair-e2 e) env))]
         [(fst? e)
          (let ([v1 (eval-under-env (fst-e e) env)])
            (cond [(apair? v1) (apair-e1 v1)]
@@ -110,32 +110,38 @@
 ;; Problem 3
 
 (define (ifaunit e1 e2 e3) (ifgreater (isaunit e1) (int 0) e2 e3))
-  
-(define (mlet* lstlst e2)
-  (if (null? lstlst)
-      (apair)
-      (if (equal? (car (car lstlst)) (var-string e2))
-          (cdr (car lstlst))
-          (mlet* (cdr lstlst) e2))))
+
+
+(define (mlet* lstlst e2) 
+  (cond [(null? lstlst) e2]
+        [#t (mlet (car (car lstlst)) (cdr (car lstlst))
+                  (mlet* (cdr lstlst) e2))]))
                               
-(define (ifeq e1 e2 e3 e4) (ifgreater e1 e2 e4 (ifgreater e2 e1 e4 e3)))
+(define (ifeq e1 e2 e3 e4) 
+  (mlet "e1" e1
+        (mlet "e2" e2
+              (ifgreater (var "e1") (var "e2")
+                         e4
+                         (ifgreater (var "e2") (var "e1")
+                                    e4
+                                    e3)))))
 
 ;; Problem 4
 
 (define mupl-map
-  (closure '() (fun #f "f"
-                    (mlet "x" (var "f")(fun "helper-func" "xs"
-                                            (ifgreater
-                                             (isaunit (var "xs"))
-                                             (int 0)
-                                             (aunit)
-                                             (apair
-                                              (call (var "x") (fst (var "xs")))
-                                              (call (var "helper-func") (snd (var "xs"))))))))))
+  (fun "helper-func" "f"
+       (fun #f "xs"
+            (ifaunit (var "xs")
+                     (aunit)
+                     (apair (call (var "f") (fst (var "xs")))
+                            (call (call (var "helper-func") (var "f"))
+                                  (snd (var "xs"))))))))
 
 (define mupl-mapAddN
-  (closure '() (fun #f "i"
-                    (mlet "j" (var "i") (call mupl-map (fun #f "x" (add (var "x") (var "i"))))))))
+  (mlet "helper-func" mupl-map 
+        (fun #f "x"
+             (call (var "helper-func") (fun #f "y" 
+                                    (add (var "x") (var "y")))))))
 
 ;; Challenge Problem
 
